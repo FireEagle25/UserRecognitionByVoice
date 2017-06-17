@@ -8,7 +8,7 @@ def create_user(name):
     return new_user
 
 
-def add_record(filename, user_id):
+def add_record_to_user(filename, user_id):
     record = Record.create(filename=filename, owner=user_id)
     return record
 

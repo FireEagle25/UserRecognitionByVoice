@@ -5,7 +5,7 @@ from flask import request
 from flask import url_for
 
 import FileController
-from UserIdentificationModule.Controllers.UserController import identify_user, create_user, add_record
+from UserIdentificationModule.Controllers.UserController import identify_user, create_user, add_record_to_user
 
 app = Flask(__name__)
 
@@ -19,16 +19,19 @@ def main():
 def register_user():
     if request.method == 'POST':
         user_name = request.form.get('user_name')
-        return create_user(name=user_name)
+        return redirect("add_record?user_id=" + str((create_user(name=user_name)).id), code=302)
     else:
-        return app.send_static_file('registration_page.html')
+        return app.send_static_file('registration.html')
 
 
-@app.route('/add_record', methods=['POST'])
-def register_user():
-    file = FileController.File(request.files['audio-blob'])
-    file.save()
-    return add_record(file.filename, request.form.get('user_id'))
+@app.route('/add_record', methods=['GET', 'POST'])
+def add_record():
+    if request.method == 'POST':
+        file = FileController.File(request.files['audio-blob'])
+        file.save()
+        return str(add_record_to_user(file.filename, request.form.get('user_id')).id)
+    else:
+        return app.send_static_file('audio_recording.html')
 
 
 @app.route('/user_identification', methods=['GET', 'POST'])
