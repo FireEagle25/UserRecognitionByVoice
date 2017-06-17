@@ -1,1 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
+.idea/
+UserIdentificationModule/Controllers/__pycache__/
+UserIdentificationModule/IdentificationCore/__pycache__/
+UserIdentificationModule/Models/Configs/__pycache__/
+UserIdentificationModule/Models/__pycache__/
+__pycache__/
+blob
