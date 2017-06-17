@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<title>Идентификация по голосу</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<link rel="stylesheet" href="static/assets/css/main.css">
+
+<script src="static/assets/js/jquery.min.js"></script>
+<script src="static/assets/js/easytimer.js"></script>
+
+<script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+<script src="https://cdn.webrtc-experiment.com/gif-recorder.js"></script>
+<script src="https://cdn.webrtc-experiment.com/getScreenId.js"></script>
+<script src="https://cdn.webrtc-experiment.com/gumadapter.js"></script>
+
+<body>
+
+<div class="bgimg w3-display-container w3-animate-opacity w3-text-white">
+
+    <div class="w3-display-topleft w3-container w3-xlarge">
+        <p><button class="w3-button w3-border"><a href="index.html">на главную</a></button></p>
+    </div>
+
+    <div class='w3-display-topmiddle w3-container w3-xlarge' style='padding-left: 10%'>
+        <p class='w3-center' id='timer'></p>
+    </div>
+    <div class="w3-display-middle" style="padding-left: 10%" id="identification_block">
+        <img class='w3-center' src='http://spb2018.com/static/main/load.gif' width='70' height='70'>
+    </div>
+</div>
+
+<div class="recordrtc" hidden="true">
+    <h2 class="header" hidden="true">
+        <select class="recording-media">
+            <option value="record-audio">Audio</option>
+        </select>
+        <select class="media-container-format">
+            <option>WAV</option>
+        </select>
+    </h2>
+
+    <button id="record_button">Start Recording</button>
+
+    <div style="text-align: center; display: none;">
+        <button id="save-to-disk">Save To Disk</button>
+        <button id="upload-to-server">Upload To Server</button>
+    </div>
+
+    <br>
+
+    <video controls muted hidden="true"></video>
+</div>
+
+<svg preserveAspectRatio="none" id="visualizer" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <mask id="mask">
+            <g id="maskGroup">
+            </g>
+        </mask>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+            <stop offset="20%" style="stop-color:#393939;stop-opacity:1" />
+            <stop offset="90%" style="stop-color:#737373;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:rgb(255, 255, 255);stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="100%" height="100%" fill="url(#gradient)" mask="url(#mask)"></rect>
+</svg>
+
+<script>
+    (function() {
+        var params = {},
+                r = /([^&=]+)=?([^&]*)/g;
+
+        function d(s) {
+            return decodeURIComponent(s.replace(/\+/g, ' '));
+        }
+
+        var match, search = window.location.search;
+        while (match = r.exec(search.substring(1))) {
+            params[d(match[1])] = d(match[2]);
+
+            if(d(match[2]) === 'true' || d(match[2]) === 'false') {
+                params[d(match[1])] = d(match[2]) === 'true' ? true : false;
+            }
+        }
+
+        window.params = params;
+    })();
+</script>
+
+<script>
+    function record_button_click() {
+        document.getElementById("record_button").click();
+        h.innerHTML = "<img class='w3-center' src='http://spb2018.com/static/main/load.gif' width='70' height='70'>"
+    }
+
+    $(document).ready(function(){
+        document.getElementById("record_button").click();
+    });
+
+
+    "use strict";
+    var paths = document.getElementsByTagName('path');
+    var visualizer = document.getElementById('visualizer');
+    var mask = visualizer.getElementById('mask');
+    var h = document.getElementById('identification_block');
+    var path;
+    var report = 0;
+
+    function soundAllowed (stream) {
+
+        start_timer()
+        h.innerHTML = "<p class='w3-xxxlarge w3-center w3-animate-top'>ПРОИЗНЕСИТЕ<br> КЛЮЧЕВУЮ ФРАЗУ</p>"
+
+        window.persistAudioStream = stream;
+        var audioContent = new AudioContext();
+        var audioStream = audioContent.createMediaStreamSource( stream );
+        var analyser = audioContent.createAnalyser();
+        audioStream.connect(analyser);
+        analyser.fftSize = 1024;
+
+        var frequencyArray = new Uint8Array(analyser.frequencyBinCount);
+        visualizer.setAttribute('viewBox', '0 0 255 255');
+
+        for (var i = 0 ; i < 255; i++) {
+            path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('stroke-dasharray', '4,1');
+            mask.appendChild(path);
+        }
+        var doDraw = function () {
+            requestAnimationFrame(doDraw);
+            analyser.getByteFrequencyData(frequencyArray);
+            var adjustedLength;
+            for (var i = 0 ; i < 255; i++) {
+                adjustedLength = Math.floor(frequencyArray[i]) - (Math.floor(frequencyArray[i]) % 5);
+                paths[i].setAttribute('d', 'M '+ (i) +',255 l 0,-' + adjustedLength);
+            }
+
+        }
+        doDraw();
+    }
+
+    function soundNotAllowed() {
+        h.innerHTML = "" +
+                "<p class='w3-animate-top w3-xxxlarge w3-center'>ВКЛЮЧИТЕ МИКРОФОН</p>" +
+                "<hr class='w3-border-grey' style='margin:auto;width:40%'>"  +
+                "<p class='w3-xxlarge w3-center'><button class='w3-button' onclick='record_button_click()'>ПОПРОБОВАТЬ СНОВА</button></p>"
+    }
+
+    function start_timer() {
+        var timer = new Timer();
+        timer.start({precision: 'secondTenths', target: {seconds: 5}, callback: function (values) {
+            $('#timer').html(values.toString(['minutes', 'seconds', 'secondTenths']));
+        }});
+
+        timer.addEventListener('targetAchieved', function (e) {
+            record_button_click();
+            $(document).ready(function(){
+                document.getElementById("upload-to-server").click();
+            });
+
+            h.innerHTML = "" +
+                            "<p class='w3-xxxlarge w3-center w3-animate-top'>ВАШИ ДАННЫЕ <br> ОБРАБАТЫВАЮТСЯ</p>" +
+                            "<p class='w3-xxxlarge w3-center w3-animate-top'><img class='w3-center' src='http://spb2018.com/static/main/load.gif' width='70' height='70'></p>"
+
+            $('#timer').empty();
+        });
+    }
+
+    var recordingDIV = document.querySelector('.recordrtc');
+    var recordingMedia = recordingDIV.querySelector('.recording-media');
+    var recordingPlayer = recordingDIV.querySelector('video');
+    var mediaContainerFormat = recordingDIV.querySelector('.media-container-format');
+
+    recordingDIV.querySelector('button').onclick = function() {
+        var button = this;
+
+        if  (button.innerHTML === 'Stop Recording') {
+            button.innerHTML = 'Star Recording';
+
+            function stopStream() {
+                if(button.stream && button.stream.stop) {
+                    button.stream.stop();
+                    button.stream = null;
+                }
+            }
+
+            if  (button.recordRTC) {
+                if(button.recordRTC.length) {
+                    button.recordRTC[0].stopRecording(function(url) {
+                        if(!button.recordRTC[1]) {
+                            button.recordingEndedCallback(url);
+                            stopStream();
+
+                            saveToDiskOrOpenNewTab(button.recordRTC[0]);
+                            return;
+                        }
+
+                        button.recordRTC[1].stopRecording(function(url) {
+                            button.recordingEndedCallback(url);
+                            stopStream();
+                        });
+                    });
+                }
+                else {
+                    button.recordRTC.stopRecording(function(url) {
+                        button.recordingEndedCallback(url);
+                        stopStream();
+
+                        saveToDiskOrOpenNewTab(button.recordRTC);
+                    });
+                }
+            }
+
+            return;
+        }
+
+        button.disabled = true;
+
+        var commonConfig = {
+            onMediaCaptured: function(stream) {
+                button.stream = stream;
+                if(button.mediaCapturedCallback) {
+                    button.mediaCapturedCallback();
+                }
+
+                button.innerHTML = 'Stop Recording';
+                button.disabled = false;
+            },
+            onMediaStopped: function() {
+                button.innerHTML = 'Start Recording';
+
+                if(!button.disableStateWaiting) {
+                    button.disabled = false;
+                }
+            },
+            onMediaCapturingFailed: function(error) {
+                if(error.name === 'PermissionDeniedError' && !!navigator.mozGetUserMedia) {
+                    InstallTrigger.install({
+                        'Foo': {
+                            // https://addons.mozilla.org/firefox/downloads/latest/655146/addon-655146-latest.xpi?src=dp-btn-primary
+                            URL: 'https://addons.mozilla.org/en-US/firefox/addon/enable-screen-capturing/',
+                            toString: function () {
+                                return this.URL;
+                            }
+                        }
+                    });
+                }
+
+                commonConfig.onMediaStopped();
+            }
+        };
+
+        if(recordingMedia.value === 'record-audio') {
+            captureAudio(commonConfig);
+
+            button.mediaCapturedCallback = function() {
+                button.recordRTC = RecordRTC(button.stream, {
+                    type: 'audio',
+                    bufferSize: typeof params.bufferSize == 'undefined' ? 0 : parseInt(params.bufferSize),
+                    sampleRate: typeof params.sampleRate == 'undefined' ? 44100 : parseInt(params.sampleRate),
+                    leftChannel: params.leftChannel || false,
+                    disableLogs: params.disableLogs || false,
+                    recorderType: webrtcDetectedBrowser === 'edge' ? StereoAudioRecorder : null
+                });
+
+                button.recordingEndedCallback = function(url) {
+                    var audio = new Audio();
+                    audio.src = url;
+                    audio.controls = true;
+                    recordingPlayer.parentNode.appendChild(document.createElement('hr'));
+                    recordingPlayer.parentNode.appendChild(audio);
+
+                    //if(audio.paused) audio.play();
+
+                    audio.onended = function() {
+                        audio.pause();
+                        audio.src = URL.createObjectURL(button.recordRTC.blob);
+                    };
+                };
+
+                button.recordRTC.startRecording();
+            };
+        }
+
+    };
+
+    function captureAudio(config) {
+        captureUserMedia({audio: true}, function(audioStream) {
+            recordingPlayer.srcObject = audioStream;
+            recordingPlayer.play();
+
+            config.onMediaCaptured(audioStream);
+
+            audioStream.onended = function() {
+                config.onMediaStopped();
+            };
+            soundAllowed(audioStream);
+        }, function(error) {
+            soundNotAllowed();
+            config.onMediaCapturingFailed(error);
+        });
+    }
+
+    function captureUserMedia(mediaConstraints, successCallback, errorCallback) {
+        navigator.mediaDevices.getUserMedia(mediaConstraints).then(successCallback).catch(errorCallback);
+    }
+
+    function setMediaContainerFormat(arrayOfOptionsSupported) {
+        var options = Array.prototype.slice.call(
+                mediaContainerFormat.querySelectorAll('option')
+        );
+
+        var selectedItem;
+        options.forEach(function(option) {
+            option.disabled = true;
+
+            if(arrayOfOptionsSupported.indexOf(option.value) !== -1) {
+                option.disabled = false;
+
+                if(!selectedItem) {
+                    option.selected = true;
+                    selectedItem = option;
+                }
+            }
+        });
+    }
+
+    recordingMedia.onchange = function() {
+        if(this.value === 'record-audio') {
+            setMediaContainerFormat(['WAV', 'Ogg']);
+            return;
+        }
+        setMediaContainerFormat(['WebM', /*'Mp4',*/ 'Gif']);
+    };
+
+    function saveToDiskOrOpenNewTab(recordRTC) {
+        recordingDIV.querySelector('#save-to-disk').parentNode.style.display = 'block';
+        recordingDIV.querySelector('#save-to-disk').onclick = function() {
+            if(!recordRTC) return alert('No recording found.');
+
+            recordRTC.save();
+        };
+
+        recordingDIV.querySelector('#upload-to-server').disabled = false;
+        recordingDIV.querySelector('#upload-to-server').onclick = function() {
+            if(!recordRTC) return alert('No recording found.');
+            this.disabled = true;
+
+            var button = this;
+            uploadToServer(recordRTC, function(progress, fileURL) {
+                if(progress === 'ended') {
+                    button.disabled = false;
+                    button.innerHTML = 'Click to download from server';
+                    button.onclick = function() {
+                        window.open(fileURL);
+                    };
+                    return;
+                }
+                button.innerHTML = progress;
+            });
+        };
+    }
+
+    var listOfFilesUploaded = [];
+
+    function uploadToServer(recordRTC, callback) {
+        var blob = recordRTC instanceof Blob ? recordRTC : recordRTC.blob;
+        var fileType = blob.type.split('/')[0] || 'audio';
+        var fileName = (Math.random() * 1000).toString().replace('.', '');
+
+        if (fileType === 'audio') {
+            fileName += '.' + (!!navigator.mozGetUserMedia ? 'ogg' : 'wav');
+        } else {
+            fileName += '.webm';
+        }
+
+        // create FormData
+        var formData = new FormData();
+        formData.append(fileType + '-filename', fileName);
+        formData.append(fileType + '-blob', blob);
+
+        callback('Uploading ' + fileType + ' recording to server.');
+
+        makeXMLHttpRequest('user_identification', formData, function(progress) {
+            if (progress !== 'upload-ended') {
+
+                callback(progress);
+                return;
+            }
+
+            var initialURL = location.href.replace(location.href.split('/').pop(), '') + 'uploads/';
+
+            callback('ended', initialURL + fileName);
+
+            // to make sure we can delete as soon as visitor leaves
+            listOfFilesUploaded.push(initialURL + fileName);
+        });
+    }
+
+    function makeXMLHttpRequest(url, data, callback) {
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function() {
+            if (request.readyState == 4 && request.status == 200) {
+                console.log('upload-ended');
+                callback('upload-ended');
+                console.log(request.response);
+                window.location.href = request.response;
+            }
+        };
+
+        request.upload.onloadstart = function() {
+            console.log('Upload started...');
+            callback('Upload started...');
+        };
+
+        request.upload.onprogress = function(event) {
+            console.log('Upload Progress ' + Math.round(event.loaded / event.total * 100) + "%");
+            callback('Upload Progress ' + Math.round(event.loaded / event.total * 100) + "%");
+        };
+
+        request.upload.onload = function() {
+            console.log('progress-about-to-end');
+            callback('progress-about-to-end');
+        };
+
+        request.upload.onload = function() {
+            console.log('progress-ended');
+            callback('progress-ended');
+        };
+
+        request.upload.onerror = function(error) {
+            callback('Failed to upload to server');
+            console.error('XMLHttpRequest failed', error);
+        };
+
+        request.upload.onabort = function(error) {
+            callback('Upload aborted.');
+            console.error('XMLHttpRequest aborted', error);
+        };
+
+        request.open('POST', url);
+        request.send(data);
+    }
+
+    window.onbeforeunload = function() {
+        recordingDIV.querySelector('button').disabled = false;
+        recordingMedia.disabled = false;
+        mediaContainerFormat.disabled = false;
+
+        if(!listOfFilesUploaded.length) return;
+
+        listOfFilesUploaded.forEach(function(fileURL) {
+            var request = new XMLHttpRequest();
+            request.onreadystatechange = function() {
+                if (request.readyState == 4 && request.status == 200) {
+                    if(this.responseText === ' problem deleting files.') {
+                        alert('Failed to delete ' + fileURL + ' from the server.');
+                        return;
+                    }
+
+                    listOfFilesUploaded = [];
+                    alert('You can leave now. Your files are removed from the server.');
+                }
+            };
+            request.open('POST', 'delete.php');
+
+            var formData = new FormData();
+            formData.append('delete-file', fileURL.split('/').pop());
+            request.send(formData);
+        });
+
+        return 'Please wait few seconds before your recordings are deleted from the server.';
+    };
+</script>
+
+</body>
+</html>

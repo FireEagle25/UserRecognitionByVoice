@@ -1,0 +1,44 @@
+a {
+    text-decoration: none
+}
+
+.main_container {
+    color: white;
+    height: 100%;
+    width: 100%;
+    background-image: url('../mic.jpg');
+    min-height: 100%;
+    background-position: center;
+    background-size: cover;
+}
+
+body, h1 {
+        font-family: "Raleway", sans-serif
+}
+
+body, html {
+    height: 100%
+}
+
+.bgimg {
+    background-image: url('http://blog.hdwallsource.com/wp-content/uploads/2015/12/awesome-microphone-wallpaper-34328-35101-hd-wallpapers.jpg');
+    min-height: 100%;
+    background-position: center;
+    background-size: cover;
+}
+
+svg{
+    bottom: 0;
+    display: block;
+    width: 100%;
+    height: 30%;
+    padding: 0;
+    margin: 0;
+    position:absolute;
+}
+
+path{
+    stroke-linecap: square;
+    stroke: white;
+    stroke-width: 0.5px;
+}
